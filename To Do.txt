@@ -1,0 +1,19 @@
+- Add player mesh
+- Add round timer, or kills limit
+- Add kills
+- Kill feed
+- End Game Screen
+- Game Modes
+- Add Shoot timer
+- Add Projectile types
+- Scope on sniper mode
+- Melee mode
+- Kill count UI/ Tab Menu/ Scores UI on screen
+- More interesting map
+
+
+- Destroyable cover
+- Interactables
+	- Pull up/down cover
+	- Jump/boost pad
+	- Buttons to move areas
