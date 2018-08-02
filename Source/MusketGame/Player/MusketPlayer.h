@@ -61,25 +61,15 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Enum)
 		EWeaponEnum CurrentWeapon;
 	
-	// Widget template class
-	UPROPERTY(EditDefaultsOnly, Category = UI)
-		TSubclassOf<class UUserWidget> HUDClass;
+	float ShootDelay = 0.6f;
+	bool bCanShoot = true;
+	FTimerHandle ShootDelayHandle;
+	void ResetShootDelay();
 
-	// Widget Instance
-	UPROPERTY(BlueprintReadOnly, Category = UI)
-		class UUserWidget* HUDInstance;
+	UPROPERTY(BlueprintReadOnly)
+		float ReloadPercentage = 1.0f;
 
-
-	// Widget template class
-	UPROPERTY(EditDefaultsOnly, Category = UI)
-		TSubclassOf<class UUserWidget> PauseMenuClass;
-
-	// Widget Instance
-	UPROPERTY(BlueprintReadOnly, Category = UI)
-		class UUserWidget* PauseMenuInstance;
-
-
-	// Current Weapon Value
+	// Current Health Value
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Player, Replicated)
 		float fCurrentHealth;
 
@@ -89,10 +79,7 @@ public:
 
 	virtual float TakeDamage(float DamageAmount, struct FDamageEvent const& DamageEvent, class AController* EventInstigator, class AActor* DamageCauser);
 
-
-	UFUNCTION(BlueprintCallable)
-		void ToggleMenu();
-	
+		
 protected:
 	/** Gun mesh */
 	UPROPERTY(VisibleDefaultsOnly, Category = Mesh)
@@ -142,8 +129,8 @@ private:
 		bool ShootProjectile_Validate();
 
 	UFUNCTION(NetMulticast, Reliable)
-		void KillPlayer();
-		void KillPlayer_Implementation();
+		void KillPlayer(AActor* Killer);
+		void KillPlayer_Implementation(AActor* Killer);
 
 
 	UFUNCTION(Client, Reliable)
@@ -153,6 +140,4 @@ private:
 	FVector SpawnPos;
 	FRotator SpawnActorRotation;
 
-	FInputModeUIOnly UIInputType;
-	FInputModeGameOnly GameInputType;
 };

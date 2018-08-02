@@ -17,3 +17,4 @@
 	- Pull up/down cover
 	- Jump/boost pad
 	- Buttons to move areas
+- Ragdoll

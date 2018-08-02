@@ -66,6 +66,9 @@ public:
 	UFUNCTION(BlueprintCallable)
 		void JoinServer(const FString IPAddress);
 
+	UFUNCTION(BlueprintCallable)
+		void SearchForServers();
+
 private:
 	void SetAllInvisible();
 	void ShowWidget(TSubclassOf<class UUserWidget> WidgetClass, UUserWidget* WidgetToShow);

@@ -13,6 +13,7 @@
 
 // Local Includes //
 #include "Projectiles/BaseProjectile.h"
+#include "GamePlayerController.h"
 
 // Sets default values
 AMusketPlayer::AMusketPlayer()
@@ -42,13 +43,15 @@ AMusketPlayer::AMusketPlayer()
 	GetMesh()->SetOwnerNoSee(true);
 
 	CurrentWeapon = EWeaponEnum::W_BOUNCYBALL;
+	MuzzleOffset = FVector(50.0f, 0.0f, 0.0f);
+
 }
 
 // Called when the game starts or when spawned
 void AMusketPlayer::BeginPlay()
 {
 	Super::BeginPlay();
-	if (HUDClass)
+	/*if (HUDClass)
 	{
 		HUDInstance = CreateWidget<UUserWidget>(GetWorld(), HUDClass);
 		if (HUDInstance) HUDInstance->AddToViewport();
@@ -56,7 +59,7 @@ void AMusketPlayer::BeginPlay()
 	}
 	else
 		GEngine->AddOnScreenDebugMessage(-1, 4.0f, FColor::Red, TEXT("HUDClass not set!"));
-
+*/
 
 	GEngine->AddOnScreenDebugMessage(-1, 4.0f, FColor::Green, TEXT("Using Musket Player"));
 
@@ -66,7 +69,6 @@ void AMusketPlayer::BeginPlay()
 	SpawnPos = GetActorLocation();
 	SpawnActorRotation = GetActorRotation(); //GetController()
 	IsShoot = false;
-	UIInputType.SetLockMouseToViewportBehavior(EMouseLockMode::DoNotLock);
 }
 
 
@@ -74,6 +76,8 @@ void AMusketPlayer::BeginPlay()
 void AMusketPlayer::Tick(float DeltaTime)
 {
 	Super::Tick(DeltaTime);
+
+	ReloadPercentage = GetWorldTimerManager().GetTimerElapsed(ShootDelayHandle) / ShootDelay;
 }
 
 // Called to bind functionality to input
@@ -92,8 +96,6 @@ void AMusketPlayer::SetupPlayerInputComponent(UInputComponent* PlayerInputCompon
 
 	PlayerInputComponent->BindAction("Interact", IE_Pressed, this, &AMusketPlayer::Interact);
 	
-	PlayerInputComponent->BindAction("ToggleMenu", IE_Pressed, this, &AMusketPlayer::ToggleMenu);
-
 	// Bind movement events
 	PlayerInputComponent->BindAxis("MoveForward", this, &AMusketPlayer::MoveForward);
 	PlayerInputComponent->BindAxis("MoveRight", this, &AMusketPlayer::MoveRight);
@@ -114,8 +116,17 @@ void AMusketPlayer::Interact()
 
 void AMusketPlayer::OnLeftFire()
 {
-	ShootProjectile();
-	IsShoot = true;
+	if (bCanShoot)
+	{
+		GetWorld()->GetTimerManager().SetTimer(ShootDelayHandle, this, &AMusketPlayer::ResetShootDelay, ShootDelay, false);
+		bCanShoot = false;
+		ShootProjectile();
+		IsShoot = true;
+	}
+}
+void AMusketPlayer::ResetShootDelay()
+{
+	bCanShoot = true;	
 }
 
 void AMusketPlayer::OnRightFirePress()
@@ -180,52 +191,27 @@ void AMusketPlayer::GetLifetimeReplicatedProps(TArray< FLifetimeProperty > & Out
 float AMusketPlayer::TakeDamage(float Damage, FDamageEvent const& DamageEvent, AController* EventInstigator, AActor* DamageCauser)
 {
 	if (!HasAuthority()) return Damage;
-	GEngine->AddOnScreenDebugMessage(-1, 4.0f, FColor::Blue, TEXT("Server applying damage to " + FString::FromInt(GetNetOwningPlayer()->GetUniqueID()) + " from " + FString::FromInt(DamageCauser->GetNetOwningPlayer()->GetUniqueID())));
 	//GetWorld()->GetAuthGameMode()->GameState->PlayerArray[0]->PlayerId
 	if (fCurrentHealth > 0 ) fCurrentHealth -= Damage;
 	if (fCurrentHealth <= 0)
 	{
-		KillPlayer();
+		KillPlayer(DamageCauser);
 		if (Role == ROLE_SimulatedProxy || Role == ROLE_AutonomousProxy) // If this player is controlled by the server (I think)
 			GetController()->SetControlRotation(SpawnActorRotation); // Set current controller rotation
 		else // this player is controlled by a client
 			ResetPlayerView(); // send message to controlling client
+
 		//GetWorld()->GetAuthGameMode()->FindPlayerStart()
 	}
 	return Damage;
 }
 
-void AMusketPlayer::ToggleMenu()
+void AMusketPlayer::KillPlayer_Implementation(AActor* Killer)
 {
-	if (PauseMenuClass)
-	{
-		if (!PauseMenuInstance)
-		{
-			PauseMenuInstance = CreateWidget<UUserWidget>(GetWorld(), PauseMenuClass);
-			PauseMenuInstance->AddToViewport();
-			GetWorld()->GetFirstPlayerController()->SetInputMode(UIInputType);
-			GetWorld()->GetFirstPlayerController()->bShowMouseCursor = true;
-		}
-		else
-		{
-			if (PauseMenuInstance->GetVisibility() == ESlateVisibility::Visible)
-			{
-				PauseMenuInstance->SetVisibility(ESlateVisibility::Hidden);
-				GetWorld()->GetFirstPlayerController()->SetInputMode(GameInputType);
-				GetWorld()->GetFirstPlayerController()->bShowMouseCursor = false;
-			}
-			else
-			{
-				PauseMenuInstance->SetVisibility(ESlateVisibility::Visible);
-				GetWorld()->GetFirstPlayerController()->SetInputMode(UIInputType);
-				GetWorld()->GetFirstPlayerController()->bShowMouseCursor = true;
-			}
-		}
-	}
-}
-
-void AMusketPlayer::KillPlayer_Implementation()
-{
+	Cast<AGamePlayerController>(GetWorld()->GetFirstPlayerController())->AddKillFeed(Killer);
+	// Display killer and killed
+	// Cast player controller and call AddKillFeed
+	GEngine->AddOnScreenDebugMessage(-1, 4.0f, FColor::Blue, TEXT("[" + FString::FromInt(Killer->GetUniqueID())  + "] killed [" + FString::FromInt(GetUniqueID()) + "]"));
 	SetActorLocation(SpawnPos);
 	fCurrentHealth = 100.0f;
 }

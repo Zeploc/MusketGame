@@ -7,18 +7,17 @@
 #include "Blueprint/UserWidget.h"
 #include "Engine.h"
 
+// Local Includes //
+#include "NetworkSession/NWGameInstance.h"
+
 // Called when the game starts or when spawned
 void AMenuController::BeginPlay()
 {
-	if (MainWidgetClass)
-	{
-		MainWidgetInstance = CreateWidget<UUserWidget>(GetWorld(), MainWidgetClass);
-		if (MainWidgetInstance) MainWidgetInstance->AddToViewport();
-	}
-	//InputType.SetWidgetToFocus(MainWidgetInstance);
-	InputType.SetLockMouseToViewportBehavior(EMouseLockMode::DoNotLock);
-	SetInputMode(InputType);
+	ShowWidget(MainWidgetClass, MainWidgetInstance);
 	bShowMouseCursor = true;
+
+	/** Bind function for NETWORK ERROR handling */
+	GEngine->OnNetworkFailure().AddUObject(Cast<UNWGameInstance>(GetGameInstance()), &UNWGameInstance::HandleNetworkFailure);
 }
 
 void AMenuController::ShowHostGame()
@@ -39,14 +38,20 @@ void AMenuController::EndGame()
 void AMenuController::ShowMain()
 {
 	ShowWidget(MainWidgetClass, MainWidgetInstance);
+	GEngine->AddOnScreenDebugMessage(-1, 4.0f, FColor::Green, "Back to main menu");
 }
 
 void AMenuController::StartHost()
 {
-	const FString& MapName = "TestLevel";
+	UNWGameInstance* NetworkGameInstance = Cast<UNWGameInstance>(GetGameInstance());
+	if (NetworkGameInstance->HostSession(GetLocalPlayer()->GetPreferredUniqueNetId(), "ServerName",  true, true, 2))
+	{
+		GEngine->AddOnScreenDebugMessage(-1, 4.0f, FColor::Green, "Creating Game Session...");
+	}
+	/*const FString& MapName = "TestLevel";
 	const FString URL = "/Game/Maps/" + MapName + "?Listen";
 	GEngine->AddOnScreenDebugMessage(-1, 4.0f, FColor::Green, "Hosting Listen server on map " + MapName);
-	GetWorld()->ServerTravel(URL);
+	GetWorld()->ServerTravel(URL);*/
 	FInputModeGameOnly GameInputType;
 	SetInputMode(GameInputType);
 }
@@ -55,6 +60,15 @@ void AMenuController::JoinServer(const FString IPAddress)
 {
 	GEngine->AddOnScreenDebugMessage(-1, 4.0f, FColor::Green, "Attempting to connect to " + IPAddress);
 	ClientTravel(IPAddress, TRAVEL_Absolute);
+	FInputModeGameOnly GameInputType;
+	SetInputMode(GameInputType);
+}
+
+void AMenuController::SearchForServers()
+{
+	UNWGameInstance* NetworkGameInstance = Cast<UNWGameInstance>(GetGameInstance());
+	NetworkGameInstance->FindSessions(GetLocalPlayer()->GetPreferredUniqueNetId(), true, true);
+	GEngine->AddOnScreenDebugMessage(-1, 4.0f, FColor::Green, "Looking for available Game Sessions...");
 	FInputModeGameOnly GameInputType;
 	SetInputMode(GameInputType);
 }
@@ -81,6 +95,8 @@ void AMenuController::ShowWidget(TSubclassOf<class UUserWidget> WidgetClass, UUs
 			WidgetToShow->SetVisibility(ESlateVisibility::Visible);
 		}
 	}
+	else
+		GEngine->AddOnScreenDebugMessage(-1, 4.0f, FColor::Red, "Hud Class not found");
 	InputType.SetLockMouseToViewportBehavior(EMouseLockMode::DoNotLock);
 	SetInputMode(InputType);
 }
